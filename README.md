@@ -1,6 +1,6 @@
 # Trivia Squads
 
-Async-first, team-based trivia for friend groups and coworkers. Two teams of 3–8 players compete across 5 rounds. Each round is owned by one player who answers 5 themed questions within a 24-hour window — no scheduling required.
+Async-first, team-based trivia for friend groups and coworkers. Two teams of 3–8 players compete across 5 rounds. Each round is owned by one player who answers 5 themed questions within a 12-hour window — no scheduling required.
 
 ## Spec documents
 

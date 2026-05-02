@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Trivia Squads is an async-first, team-based trivia web application for friend groups and coworkers. Teams of 3–8 players compete against other teams across games of 5 rounds each. Each round is owned by one randomly selected player who answers 5 themed-category questions within a 24-hour window; no synchronous play is required. This document specifies the requirements for the Minimum Lovable Product (MLP), which validates the core game loop on a responsive web platform with email-based authentication and notifications. Scope is strictly limited to the core loop: team formation, game creation/acceptance, round assignment, round play, substitute flow, and game completion with scoring reveal.
+Trivia Squads is an async-first, team-based trivia web application for friend groups and coworkers. Teams of 3–8 players compete against other teams across games of 5 rounds each. Each round is owned by one randomly selected player who answers 5 themed-category questions within a 12-hour window; no synchronous play is required. This document specifies the requirements for the Minimum Lovable Product (MLP), which validates the core game loop on a responsive web platform with email-based authentication and notifications. Scope is strictly limited to the core loop: team formation, game creation/acceptance, round assignment, round play, substitute flow, and game completion with scoring reveal.
 
 ## Glossary
 
@@ -28,7 +28,7 @@ Trivia Squads is an async-first, team-based trivia web application for friend gr
 - **Category_Catalog**: The fixed set of 8–10 Categories available for Round themes in the MLP.
 - **Question**: A single trivia question with exactly one correct answer and a set of answer choices.
 - **Question_Bank**: A pre-populated, curated collection of approved Questions stored by Category, from which the Question_Service selects Questions for Rounds. The Question Bank is populated and maintained out-of-band (outside runtime gameplay) and is not generated on demand during gameplay in the MLP.
-- **Answer_Window**: The 24-hour period during which a Round_Owner may open and complete their Round. A Round_Owner's Answer_Window starts at Game start (for an Original_Owner) or at substitute assignment (for an Active_Substitute).
+- **Answer_Window**: The 12-hour period during which a Round_Owner may open and complete their Round. A Round_Owner's Answer_Window starts at Game start (for an Original_Owner) or at substitute assignment (for an Active_Substitute).
 - **Question_Timer**: A 30-second countdown that begins when a Round_Owner first views a Question and ends when the Player submits an answer or 30 seconds elapse.
 - **Round_Score**: The number of correct answers in a Round divided by the total number of Questions in that Round (always 5). Range: [0.0, 1.0].
 - **Sub_Penalty_Multiplier**: The factor 0.8 applied to a Round_Score when the Round was completed by an Active_Substitute rather than the Original_Owner.
@@ -151,7 +151,7 @@ Trivia Squads is an async-first, team-based trivia web application for friend gr
 2. WHEN an Active_Substitute is required for a Round, THE Round_Service SHALL select an eligible substitute at random from the set of Team members who currently have no open Round in this Game, where "open Round" means a Round in Round_State Not_Started, In_Progress, or Sub_Needed for which the Player is the current Round_Owner. Eligible substitutes therefore include Team members who were not assigned any Round at Game start (sitters) and Team members whose previously assigned Rounds have all reached Round_State Complete.
 3. THE Round_Service SHALL NOT select as an Active_Substitute any Player who is the current Round_Owner of the Round needing a substitute, including the Original_Owner whose missed window triggered the substitute flow.
 4. IF two or more Rounds on the same Team transition to Round_State Sub_Needed at the same moment, THEN THE Round_Service SHALL perform substitute assignment sequentially in ascending order of Round number, re-evaluating the eligible-substitute set against the updated Round_Owner state after each assignment.
-5. WHEN an Active_Substitute is assigned, THE Round_Service SHALL start a new 24-hour Answer_Window for the Active_Substitute beginning at the moment of assignment.
+5. WHEN an Active_Substitute is assigned, THE Round_Service SHALL start a new 12-hour Answer_Window for the Active_Substitute beginning at the moment of assignment.
 6. IF no eligible Team member is available to serve as an Active_Substitute, THEN THE Round_Service SHALL transition the Round to Round_State Forfeited and SHALL record the Effective_Round_Score for that Round as 0.
 7. IF an Active_Substitute's Answer_Window elapses while the Round is not in Round_State Complete, THEN THE Round_Service SHALL transition the Round to Round_State Forfeited and SHALL record the Effective_Round_Score for that Round as 0.
 8. WHEN an Active_Substitute completes a Round, THE Scoring_Service SHALL compute the Effective_Round_Score for that Round as Round_Score × Sub_Penalty_Multiplier (0.8).
@@ -176,7 +176,7 @@ Trivia Squads is an async-first, team-based trivia web application for friend gr
 #### Acceptance Criteria
 
 1. WHEN every Round in a Game has reached Round_State Complete or Round_State Forfeited, THE Game_Service SHALL transition the Game to Game_State Complete.
-2. IF all Rounds for both Teams reach a terminal state (Complete or Forfeited) before 48 hours after Game start have elapsed, THEN THE Game_Service SHALL transition the Game to Game_State Complete immediately upon the last terminal transition.
+2. IF all Rounds for both Teams reach a terminal state (Complete or Forfeited) before 24 hours after Game start have elapsed, THEN THE Game_Service SHALL transition the Game to Game_State Complete immediately upon the last terminal transition.
 3. WHEN a Game transitions to Game_State Complete, THE Scoring_Service SHALL compute each Team's Game_Score as the sum of that Team's 5 Effective_Round_Scores.
 4. WHEN a Game transitions to Game_State Complete and the two Teams have different Game_Scores, THE Scoring_Service SHALL record a win for the Team with the higher Game_Score and a loss for the other Team.
 5. WHEN a Game transitions to Game_State Complete and the two Teams have equal Game_Scores, THE Scoring_Service SHALL record a tie for both Teams.
@@ -212,7 +212,7 @@ Trivia Squads is an async-first, team-based trivia web application for friend gr
 #### Acceptance Criteria
 
 1. WHEN a Game transitions to Game_State Active, THE Notification_Service SHALL send a "Round Assigned" email to each Round_Owner containing the Round's Category, the Answer_Window deadline, and a direct link to open the Round.
-2. WHEN a Round_Owner's Answer_Window has 12 hours remaining and the Round is not in Round_State Complete, THE Notification_Service SHALL send a "12-Hour Reminder" email to that Round_Owner.
+2. WHEN a Round_Owner's Answer_Window has 6 hours remaining and the Round is not in Round_State Complete, THE Notification_Service SHALL send a "6-Hour Reminder" email to that Round_Owner.
 3. WHEN a Round_Owner's Answer_Window has 2 hours remaining and the Round is not in Round_State Complete, THE Notification_Service SHALL send a "2-Hour Urgent Reminder" email to that Round_Owner.
 4. WHEN an Active_Substitute is assigned to a Round, THE Notification_Service SHALL send a "Substitute Needed" email to the Active_Substitute containing the Round's Category, the new Answer_Window deadline, and a direct link to open the Round.
 5. WHEN a Game transitions to Game_State Complete, THE Notification_Service SHALL send a "Game Complete Digest" email to every member of both participating Teams containing each Team's Game_Score, per-Round Effective_Round_Scores, and the win/loss/tie outcome.

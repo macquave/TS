@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Trivia Squads is an async-first, team-based trivia web application in which two Teams of 3–8 Players compete across a 5-Round Game. Each Round is owned by a single Player who answers 5 themed-Category Questions within a 24-hour Answer_Window. Notifications are email-only; there is no real-time or synchronous play. This design realizes the 15 requirements (plus Req 5b known-limitation) defined in `requirements.md`.
+Trivia Squads is an async-first, team-based trivia web application in which two Teams of 3–8 Players compete across a 5-Round Game. Each Round is owned by a single Player who answers 5 themed-Category Questions within a 12-hour Answer_Window. Notifications are email-only; there is no real-time or synchronous play. This design realizes the 15 requirements (plus Req 5b known-limitation) defined in `requirements.md`.
 
 **Design tenets** (derived from requirements, not re-litigated here):
 
@@ -261,7 +261,7 @@ CREATE TABLE round_owners (
   player_id       uuid NOT NULL REFERENCES players(id),
   role            round_owner_role NOT NULL,
   assigned_at     timestamptz NOT NULL DEFAULT now(),
-  window_ends_at  timestamptz NOT NULL,   -- 24h from assigned_at (Req 7.5)
+  window_ends_at  timestamptz NOT NULL,   -- 12h from assigned_at (Req 7.5)
   is_active       boolean NOT NULL DEFAULT TRUE
 );
 
@@ -688,9 +688,9 @@ function assignRounds(game, teamA, teamB, now):
   # Req 4.7: set window_ends_at for all to game.started_at + 24h
   for r in rounds:
     r.state = 'Not_Started'
-    r.answer_window_ends_at = now + 24h
+    r.answer_window_ends_at = now + 12h
     insert_round_owner(r, r.original_owner, role='original',
-                       assigned_at=now, window_ends_at=now+24h, is_active=True)
+                       assigned_at=now, window_ends_at=now+12h, is_active=True)
 
   return rounds
 ```
@@ -756,8 +756,8 @@ function assignSubstitute(round, now):
   # Deactivate prior active owner; insert new active owner (Req 11.2)
   deactivate_current_active_owner(round)
   insert_round_owner(round, sub, role='substitute',
-                     assigned_at=now, window_ends_at=now+24h, is_active=True)
-  round.answer_window_ends_at = now + 24h   # Req 7.5
+                     assigned_at=now, window_ends_at=now+12h, is_active=True)
+  round.answer_window_ends_at = now + 12h   # Req 7.5
   round.state = 'Sub_Needed'   # will become In_Progress when sub hits Start
   enqueue_email(sub, round, 'substitute_needed')  # Req 12.4
   return sub
@@ -804,7 +804,7 @@ One `worker` process runs all sweepers. Each sweeper is idempotent; concurrent i
 | Job | Default cadence | Purpose | Idempotency |
 |---|---|---|---|
 | Window expiration sweeper | every 1 min | Find rounds where `answer_window_ends_at ≤ NOW()` AND `state ∈ (Not_Started, Sub_Needed)`; run substitute assignment (Req 7.1) or forfeit (Req 7.7). | State transition is a no-op if state is already terminal. |
-| 12-hour reminder scheduler | every 5 min | Find active owners whose window ends in [11h55m, 12h05m] and are not Complete; enqueue `reminder_12h`. (Req 12.2) | `notifications_sent` row prevents duplicate. |
+| 6-hour reminder scheduler | every 5 min | Find active owners whose window ends in [5h55m, 6h05m] and are not Complete; enqueue `reminder_6h`. (Req 12.2) | `notifications_sent` row prevents duplicate. |
 | 2-hour reminder scheduler | every 5 min | Same as above, window in [1h55m, 2h05m]. (Req 12.3) | Same. |
 | Email dispatcher | every 30 s | Drain `email_outbox` where `sent_at IS NULL`, send via Resend, update `sent_at` or `last_error` + `send_attempts`. | `email_outbox.sent_at` prevents resend; on failure, retries up to 5× with exponential backoff. |
 | Game completion detector | **not scheduled** | Triggered inline from round state transitions (Section 6.4). | `games.state = Complete` idempotent transition + `notifications_sent` for digests. |
@@ -833,7 +833,7 @@ function windowExpirationSweep():
 
 `FOR UPDATE SKIP LOCKED` lets multiple workers (if ever scaled) share the sweep without double-processing. For MLP we run exactly one worker instance.
 
-**12h / 2h reminder boundaries.** The 10-minute window ([x-5m, x+5m] in the table above) is wider than the 5-minute cadence to guarantee at-least-once scheduling even if a sweep runs slightly late. The `notifications_sent` ledger guarantees at-most-once delivery.
+**6h / 2h reminder boundaries.** The 10-minute window ([x-5m, x+5m] in the table above) is wider than the 5-minute cadence to guarantee at-least-once scheduling even if a sweep runs slightly late. The `notifications_sent` ledger guarantees at-most-once delivery.
 
 ---
 
@@ -996,7 +996,7 @@ The properties below were derived via the prework pass over every acceptance cri
 
 ### Property 9: Round Ownership Invariant
 
-*For any* Round at any point in its lifecycle, there is exactly one `round_owners` row with `is_active = TRUE`, that row's `window_ends_at = assigned_at + 24h`, and across the Round's entire history at most one `round_owners` row has `role = 'substitute'`.
+*For any* Round at any point in its lifecycle, there is exactly one `round_owners` row with `is_active = TRUE`, that row's `window_ends_at = assigned_at + 12h`, and across the Round's entire history at most one `round_owners` row has `role = 'substitute'`.
 
 **Validates: Requirements 4.7, 7.5, 7.9, 11.2**
 

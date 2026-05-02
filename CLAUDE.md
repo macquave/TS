@@ -1,7 +1,7 @@
 # Trivia Squads — Claude Code Context
 
 ## What this project is
-Trivia Squads is an async-first, team-based trivia web app. Two teams of 3–8 players compete across 5 rounds. Each round is owned by one player who answers 5 themed questions within a 24-hour window. No real-time play required.
+Trivia Squads is an async-first, team-based trivia web app. Two teams of 3–8 players compete across 5 rounds. Each round is owned by one player who answers 5 themed questions within a 12-hour window. No real-time play required.
 
 ## Spec files (source of truth)
 - `requirements.md` — 15 numbered requirements (plus Req 5b known limitation) with formal acceptance criteria

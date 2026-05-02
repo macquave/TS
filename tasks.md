@@ -339,7 +339,7 @@ The Game acceptance transaction is the most complex atomic operation in the syst
   - _Requirements: 4.3, 4.4, 4.5, 4.6, 11.4_
 
 - [ ] 10.6 Implement round + round_owner + game_sitters persistence for a game
-  - Inserts 10 `rounds` rows (5 per team), per-round `round_owners` row (role=original, is_active=true, window_ends_at = started_at + 24h), and `game_sitters` rows
+  - Inserts 10 `rounds` rows (5 per team), per-round `round_owners` row (role=original, is_active=true, window_ends_at = started_at + 12h), and `game_sitters` rows
   - _Requirements: 4.1, 4.7, 7.5 (window semantics)_
 
 - [ ] 10.7 Implement question selection with 10-game lookback and progressive relaxation (design §6.2)
@@ -538,7 +538,7 @@ The discriminated-union status response is an architectural invariant (design §
 - [ ] 15.3 Implement `assignSubstitute(round, now)` (design §6.3)
   - Compute eligible set: team members whose `player_id ∉ active_owner_player_ids_in_game(game_id)` and `≠ round.current_active_owner.player_id` (Req 7.3)
   - Pick uniformly at random from eligible
-  - Deactivate current active owner (`round_owners.is_active = false`), insert new `round_owners` row (role=substitute, is_active=true, window_ends_at=now+24h, assigned_at=now)
+  - Deactivate current active owner (`round_owners.is_active = false`), insert new `round_owners` row (role=substitute, is_active=true, window_ends_at=now+12h, assigned_at=now)
   - Update `rounds.answer_window_ends_at = now + 24h`, keep `state = Sub_Needed` until the sub hits Start
   - Enqueue `substitute_needed` email (Req 12.4)
   - Enforce at-most-one-substitute-per-round via the `uq_round_owners_one_sub` partial unique index from task 2.6
@@ -548,9 +548,9 @@ The discriminated-union status response is an architectural invariant (design §
   - Extend window-expiration sweeper (or add a separate low-frequency sweeper) to detect rounds whose active owner is no longer in `team_memberships` for the round's team; transition such rounds to `Sub_Needed` and run `assignSubstitute`
   - _Requirements: 4.8_
 
-- [ ] 15.5 Implement 12-hour reminder scheduler (design §7, Req 12.2)
-  - Every 5 min: find active owners whose `window_ends_at ∈ [NOW() + 11h55m, NOW() + 12h05m]` and round state ≠ Complete
-  - Enqueue `reminder_12h` only if `notifications_sent` has no matching row
+- [ ] 15.5 Implement 6-hour reminder scheduler (design §7, Req 12.2)
+  - Every 5 min: find active owners whose `window_ends_at ∈ [NOW() + 5h55m, NOW() + 6h05m]` and round state ≠ Complete
+  - Enqueue `reminder_6h` only if `notifications_sent` has no matching row
   - _Requirements: 12.2_
 
 - [ ] 15.6 Implement 2-hour reminder scheduler (design §7, Req 12.3)
@@ -579,8 +579,8 @@ The discriminated-union status response is an architectural invariant (design §
   - Body: category, answer_window_ends_at, direct round link, Display_Name greeting (Req 15.6)
   - _Requirements: 12.1, 15.6_
 
-- [ ] 16.3 Build `reminder_12h` template
-  - Subject: "12 hours left on your trivia round"
+- [ ] 16.3 Build `reminder_6h` template
+  - Subject: "6 hours left on your trivia round"
   - Body: category, remaining hours, round link
   - _Requirements: 12.2_
 
@@ -591,7 +591,7 @@ The discriminated-union status response is an architectural invariant (design §
 
 - [ ] 16.5 Build `substitute_needed` template
   - Subject: "You're up: trivia round needs a substitute"
-  - Body: category, new 24h window, round link
+  - Body: category, new 12h window, round link
   - _Requirements: 12.4_
 
 - [ ] 16.6 Build `game_complete_digest` template
@@ -793,7 +793,7 @@ There are exactly 18 property-based tests, one per Correctness Property from des
   - **Minimum iterations**: 100
 
 - [ ] 20.11 Property 9: Round Ownership Invariant
-  - **Property statement**: For any Round at any point in its lifecycle, there is exactly one `round_owners` row with `is_active = TRUE`, that row's `window_ends_at = assigned_at + 24h`, and across the Round's entire history at most one `round_owners` row has `role = 'substitute'`.
+  - **Property statement**: For any Round at any point in its lifecycle, there is exactly one `round_owners` row with `is_active = TRUE`, that row's `window_ends_at = assigned_at + 12h`, and across the Round's entire history at most one `round_owners` row has `role = 'substitute'`.
   - **Validates**: Requirements 4.7, 7.5, 7.9, 11.2
   - **Generators needed**: `gameLifecycleArb()` including substitute assignment and expiration events
   - **Test file**: `tests/pbt/property-9-round-ownership-invariant.test.ts`
